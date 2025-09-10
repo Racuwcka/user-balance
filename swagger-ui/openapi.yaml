@@ -1,0 +1,144 @@
+openapi: 3.0.3
+
+info:
+  title: User-Balance
+  description: API Specification for Balance Service
+  version: 0.0.1
+servers:
+  - url: http://localhost:8080
+tags:
+  - name: user-balance
+    description: manage balance of users
+
+paths:
+  /api/v1/balance/deposit:
+    post:
+      description: Начисление средств на баланс
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DepositRequest'
+      responses:
+        200:
+          description: Средства успешно зачислены
+        400:
+          description: Плохой запрос
+        422:
+          description: Ошибка валидации
+        500:
+          description: Внутренняя ошибка сервера
+  /api/v1/balance/reserve:
+    post:
+      description: Резервирование средств под заказ/услугу
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReserveRequest'
+      responses:
+        200:
+          description: Успешный ответ
+        404:
+          description: Недостаточно средств
+        422:
+          description: Ошибка валидации
+        500:
+          description: Внутренняя ошибка сервера
+  /api/v1/balance/send:
+    post:
+      description: Перевод от пользователя к пользователю
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendRequest'
+      responses:
+        200:
+          description: Успешный ответ
+        404:
+          description: Недостаточно средств для перевода
+        422:
+          description: Ошибка валидации
+        500:
+          description: Внутренняя ошибка сервера
+  /api/v1/balance/{userId}:
+    get:
+      description: Получение баланса пользователя
+      parameters:
+        - name: userId
+          in: path
+          description: ID пользователя
+          required: true
+          schema:
+            type: integer
+            example: 12345
+      responses:
+        '200':
+          description: Успешный редирект на оригинальный URL
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BalanceResponse'
+        404:
+          description: Пользователь не найден
+        422:
+          description: Ошибка валидации
+        500:
+          description: Внутренняя ошибка сервера
+components:
+  schemas:
+    DepositRequest:
+      type: object
+      required:
+        - userId
+        - serviceId
+        - amount
+      properties:
+        userId:
+          type: integer
+        serviceId:
+          type: integer
+        amount:
+          type: integer
+    ReserveRequest:
+      type: object
+      required:
+        - userId
+        - serviceId
+        - amount
+      properties:
+        userId:
+          type: integer
+        serviceId:
+          type: integer
+        amount:
+          type: integer
+    SendRequest:
+      type: object
+      required:
+        - fromUserId
+        - toUserId
+        - amount
+      properties:
+        fromUserId:
+          type: integer
+        toUserId:
+          type: integer
+        amount:
+          type: integer
+    BalanceResponse:
+      type: object
+      properties:
+        userId:
+          type: integer
+        amount:
+          type: integer
+
+
+
+
+
