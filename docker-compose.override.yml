@@ -4,6 +4,10 @@ services:
   postgres:
     image: postgres:15
     container_name: user_balance_postgres_dev
+    networks:
+      new:
+        aliases:
+          - database
     restart: always
     ports:
       - "5432:5432"
@@ -28,5 +32,24 @@ services:
     volumes:
       - .:/app
 
+  migrate:
+    image: migrate/migrate
+    networks:
+      - new
+    volumes:
+      - ./migrations:/migrations
+    env_file:
+      - .env
+    command: [
+      "-path", "/migrations",
+      "-database", "postgres://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}?sslmode=disable",
+      "up"
+    ]
+    depends_on:
+      - postgres
+
 volumes:
   postgres_data:
+
+networks:
+  new:

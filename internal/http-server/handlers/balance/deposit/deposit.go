@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/Racuwcka/user-balance.git/internal/handlers"
-	"github.com/Racuwcka/user-balance.git/internal/handlers/balance/dto"
+	"github.com/Racuwcka/user-balance.git/internal/http-server/handlers"
+	"github.com/Racuwcka/user-balance.git/internal/http-server/handlers/balance/dto"
 )
 
 type depositService interface {
