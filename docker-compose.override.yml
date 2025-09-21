@@ -4,10 +4,6 @@ services:
   postgres:
     image: postgres:15
     container_name: user_balance_postgres_dev
-    networks:
-      new:
-        aliases:
-          - database
     restart: always
     ports:
       - "5432:5432"
@@ -17,6 +13,8 @@ services:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME}
+    networks:
+      - new
 
   app:
     build:
@@ -31,6 +29,8 @@ services:
       - "8080:8080"
     volumes:
       - .:/app
+    networks:
+      - new
 
   migrate:
     image: migrate/migrate

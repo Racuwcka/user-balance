@@ -4,12 +4,11 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/Racuwcka/shorter-url/pkg/client/postgresql"
 	"github.com/Racuwcka/user-balance.git/internal/config"
 	depositHandler "github.com/Racuwcka/user-balance.git/internal/http-server/handlers/balance/deposit"
 	mwLogger "github.com/Racuwcka/user-balance.git/internal/http-server/middleware/logger"
-	depositService "github.com/Racuwcka/user-balance.git/internal/service/deposit"
-	"github.com/Racuwcka/user-balance.git/storage/postgres"
+	"github.com/Racuwcka/user-balance.git/internal/storage/postgres"
+	"github.com/Racuwcka/user-balance.git/pkg/client/postgresclient"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
@@ -30,12 +29,13 @@ func New(log *slog.Logger, cfg *config.Config) http.Handler {
 		http.Redirect(w, r, "/swagger/swagger.html", http.StatusFound)
 	})
 
-	client, err := postgresql.NewClient()
+	client, err := postgresclient.New()
 	if err != nil {
-		log.Error("Postgresql is not running, err: %v", err)
+		log.Error("Postgresql is not running", slog.Any("err", err))
+		return nil
 	}
 
-	depositHandle := depositHandler.New(depositService.New(postgres.New(client)))
+	depositHandle := depositHandler.New(postgres.New(client))
 
 	// ручки API
 	router.Route("/api/v1/balance", func(r chi.Router) {

@@ -1,6 +1,7 @@
 package deposit
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
@@ -8,30 +9,46 @@ import (
 	"github.com/Racuwcka/user-balance.git/internal/http-server/handlers/balance/dto"
 )
 
-type depositService interface {
-	Deposit(userId uint32, serviceId uint16, amount uint) error
-}
-type Handler struct {
-	depositService depositService
+type provider interface {
+	Deposit(ctx context.Context, userId uint32, amount float64) (float64, error)
 }
 
-func New(d depositService) *Handler {
+type Handler struct {
+	provider provider
+}
+
+func New(p provider) *Handler {
 	return &Handler{
-		depositService: d,
+		provider: p,
 	}
 }
+
 func (h *Handler) Handle(w http.ResponseWriter, r *http.Request) {
 	req := &dto.DepositRequest{}
 	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
-		handlers.InvalidRequest(w, err, http.StatusBadRequest)
-		return
+		handlers.InvalidRequest(w, err)
 	}
 
 	err := dto.Validate.Struct(req)
 	if err != nil {
-		handlers.InvalidValidation(w, err, http.StatusUnprocessableEntity)
+		handlers.InvalidValidation(w, err)
+	}
+
+	balance, err := h.provider.Deposit(context.Background(), req.UserId, req.Amount)
+	if err != nil {
+		handlers.GetErrorResponse(w, "funds transfer error", err, http.StatusInternalServerError)
 		return
 	}
 
-	handlers.GetSuccessResponse(w, []byte{})
+	res := dto.DepositResponse{
+		UserId:  req.UserId,
+		Balance: balance,
+	}
+
+	raw, err := json.Marshal(res)
+	if err != nil {
+		handlers.InvalidResponse(w, err)
+	}
+
+	handlers.GetSuccessResponse(w, raw)
 }

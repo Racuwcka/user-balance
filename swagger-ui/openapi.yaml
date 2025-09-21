@@ -23,6 +23,10 @@ paths:
       responses:
         200:
           description: Средства успешно зачислены
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DepositResponse'
         400:
           description: Плохой запрос
         422:
@@ -95,15 +99,22 @@ components:
       type: object
       required:
         - userId
-        - serviceId
         - amount
       properties:
         userId:
           type: integer
-        serviceId:
-          type: integer
         amount:
+          type: number
+    DepositResponse:
+      type: object
+      required:
+        - userId
+        - balance
+      properties:
+        userId:
           type: integer
+        balance:
+          type: number
     ReserveRequest:
       type: object
       required:
@@ -116,7 +127,7 @@ components:
         serviceId:
           type: integer
         amount:
-          type: integer
+          type: number
     SendRequest:
       type: object
       required:
@@ -129,16 +140,14 @@ components:
         toUserId:
           type: integer
         amount:
-          type: integer
+          type: number
     BalanceResponse:
       type: object
+      required:
+        - userId
+        - balance
       properties:
         userId:
           type: integer
-        amount:
-          type: integer
-
-
-
-
-
+        balance:
+          type: number

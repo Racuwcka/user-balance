@@ -5,29 +5,34 @@ package api
 
 // BalanceResponse defines model for BalanceResponse.
 type BalanceResponse struct {
-	Amount *int `json:"amount,omitempty"`
-	UserId *int `json:"userId,omitempty"`
+	Balance float32 `json:"balance"`
+	UserId  int     `json:"userId"`
 }
 
 // DepositRequest defines model for DepositRequest.
 type DepositRequest struct {
-	Amount    int `json:"amount"`
-	ServiceId int `json:"serviceId"`
-	UserId    int `json:"userId"`
+	Amount float32 `json:"amount"`
+	UserId int     `json:"userId"`
+}
+
+// DepositResponse defines model for DepositResponse.
+type DepositResponse struct {
+	Balance float32 `json:"balance"`
+	UserId  int     `json:"userId"`
 }
 
 // ReserveRequest defines model for ReserveRequest.
 type ReserveRequest struct {
-	Amount    int `json:"amount"`
-	ServiceId int `json:"serviceId"`
-	UserId    int `json:"userId"`
+	Amount    float32 `json:"amount"`
+	ServiceId int     `json:"serviceId"`
+	UserId    int     `json:"userId"`
 }
 
 // SendRequest defines model for SendRequest.
 type SendRequest struct {
-	Amount     int `json:"amount"`
-	FromUserId int `json:"fromUserId"`
-	ToUserId   int `json:"toUserId"`
+	Amount     float32 `json:"amount"`
+	FromUserId int     `json:"fromUserId"`
+	ToUserId   int     `json:"toUserId"`
 }
 
 // PostApiV1BalanceDepositJSONRequestBody defines body for PostApiV1BalanceDeposit for application/json ContentType.
