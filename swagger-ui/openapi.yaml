@@ -45,6 +45,10 @@ paths:
       responses:
         200:
           description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReserveResponse'
         404:
           description: Недостаточно средств
         422:
@@ -127,6 +131,19 @@ components:
         serviceId:
           type: integer
         amount:
+          type: number
+    ReserveResponse:
+      type: object
+      required:
+        - userId
+        - reserved
+        - balance
+      properties:
+        userId:
+          type: integer
+        reserved:
+          type: number
+        balance:
           type: number
     SendRequest:
       type: object

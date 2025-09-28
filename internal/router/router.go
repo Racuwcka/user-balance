@@ -5,7 +5,10 @@ import (
 	"net/http"
 
 	"github.com/Racuwcka/user-balance.git/internal/config"
-	depositHandler "github.com/Racuwcka/user-balance.git/internal/http-server/handlers/balance/deposit"
+	balanceHandler "github.com/Racuwcka/user-balance.git/internal/http-server/handlers/user-balance/balance"
+	depositHandler "github.com/Racuwcka/user-balance.git/internal/http-server/handlers/user-balance/deposit"
+	reserveHandler "github.com/Racuwcka/user-balance.git/internal/http-server/handlers/user-balance/reserve"
+	revenueHandler "github.com/Racuwcka/user-balance.git/internal/http-server/handlers/user-balance/revenue"
 	mwLogger "github.com/Racuwcka/user-balance.git/internal/http-server/middleware/logger"
 	"github.com/Racuwcka/user-balance.git/internal/storage/postgres"
 	"github.com/Racuwcka/user-balance.git/pkg/client/postgresclient"
@@ -34,12 +37,15 @@ func New(log *slog.Logger, cfg *config.Config) http.Handler {
 		log.Error("Postgresql is not running", slog.Any("err", err))
 		return nil
 	}
-
-	depositHandle := depositHandler.New(postgres.New(client))
+	storage := postgres.New(client)
 
 	// ручки API
 	router.Route("/api/v1/balance", func(r chi.Router) {
-		r.Post("/deposit", depositHandle.Handle)
+		r.Get("/{user_id}", balanceHandler.New(log, storage).Handle)
+
+		r.Post("/deposit", depositHandler.New(log, storage).Handle)
+		r.Post("/reserve", reserveHandler.New(log, storage).Handle)
+		r.Post("/revenue", revenueHandler.New(log, storage).Handle)
 	})
 
 	log.Info("starting server", slog.String("address", cfg.Address))

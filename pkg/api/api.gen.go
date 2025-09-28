@@ -28,6 +28,13 @@ type ReserveRequest struct {
 	UserId    int     `json:"userId"`
 }
 
+// ReserveResponse defines model for ReserveResponse.
+type ReserveResponse struct {
+	Balance  float32 `json:"balance"`
+	Reserved float32 `json:"reserved"`
+	UserId   int     `json:"userId"`
+}
+
 // SendRequest defines model for SendRequest.
 type SendRequest struct {
 	Amount     float32 `json:"amount"`
