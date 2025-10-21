@@ -22,11 +22,11 @@ docker/prod:
 docker/down:
 	docker compose down -v
 
-migrate-up:  ### migration up
+migrate/up:  ### migration up
 	docker-compose run --rm migrate up
 
-migrate-down:
+migrate/down:
 	docker-compose run --rm migrate down
 
-migrate-create:  ### create new migration
+migrate/create:  ### create new migration
 	migrate create -ext sql -dir migrations '$(word 2,$(MAKECMDGOALS))'

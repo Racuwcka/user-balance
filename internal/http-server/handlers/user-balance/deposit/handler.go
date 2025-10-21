@@ -7,12 +7,13 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/Racuwcka/user-balance.git/internal/http-server/handlers/user-balance/dto"
-	"github.com/Racuwcka/user-balance.git/internal/lib/api/response"
-	"github.com/Racuwcka/user-balance.git/internal/lib/logger/sl"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
 	"github.com/go-playground/validator/v10"
+
+	"github.com/Racuwcka/user-balance.git/internal/http-server/handlers/user-balance/dto"
+	"github.com/Racuwcka/user-balance.git/internal/lib/api/response"
+	"github.com/Racuwcka/user-balance.git/internal/lib/logger/sl"
 )
 
 type provider interface {
@@ -20,8 +21,9 @@ type provider interface {
 }
 
 type Handler struct {
-	log      *slog.Logger
-	provider provider
+	log         *slog.Logger
+	validateErr validator.ValidationErrors
+	provider    provider
 }
 
 func New(log *slog.Logger, p provider) *Handler {
@@ -39,8 +41,6 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request) {
 
 	req := &dto.DepositRequest{}
 	if err := render.DecodeJSON(r.Body, req); err != nil {
-		render.Status(r, http.StatusBadRequest)
-
 		if errors.Is(err, io.EOF) {
 			h.log.Error("request body is empty")
 			render.JSON(w, r, response.Error("empty request"))
@@ -55,12 +55,11 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request) {
 	h.log.Info("request body decoded", slog.Any("request", req))
 
 	if err := validator.New().Struct(req); err != nil {
-		var validateErr validator.ValidationErrors
-		errors.As(err, &validateErr)
+		errors.As(err, &h.validateErr)
 
 		h.log.Error("invalid request", sl.Err(err))
 		render.Status(r, http.StatusUnprocessableEntity)
-		render.JSON(w, r, response.ValidationError(validateErr))
+		render.JSON(w, r, response.ValidationError(h.validateErr))
 		return
 	}
 

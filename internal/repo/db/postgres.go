@@ -1,12 +1,14 @@
-package postgres
+package db
 
 import (
 	"context"
 	"errors"
+	"math"
 
-	"github.com/Racuwcka/user-balance.git/internal/storage"
-	"github.com/Racuwcka/user-balance.git/pkg/client/postgresclient"
 	"github.com/jackc/pgx/v5"
+
+	httpserver "github.com/Racuwcka/user-balance.git/internal/http-server"
+	"github.com/Racuwcka/user-balance.git/pkg/client/postgresclient"
 )
 
 type TransactionType string
@@ -29,8 +31,6 @@ type Repo struct {
 	client postgresclient.Client
 }
 
-var _ storage.Storage = (*Repo)(nil)
-
 func New(c postgresclient.Client) *Repo {
 	return &Repo{
 		client: c,
@@ -51,7 +51,7 @@ func (r *Repo) Deposit(ctx context.Context, userId uint32, amount float64) (floa
 		}
 	}()
 
-	var newBalance float64
+	var newBalance int
 
 	q1 := `
 	INSERT INTO public.balances (user_id, balance)
@@ -61,7 +61,8 @@ func (r *Repo) Deposit(ctx context.Context, userId uint32, amount float64) (floa
 	RETURNING balance
 	`
 
-	if err = tx.QueryRow(ctx, q1, userId, amount).Scan(&newBalance); err != nil {
+	amountInt := FloatToInt(amount)
+	if err = tx.QueryRow(ctx, q1, userId, amountInt).Scan(&newBalance); err != nil {
 		return 0, err
 	}
 
@@ -70,11 +71,12 @@ func (r *Repo) Deposit(ctx context.Context, userId uint32, amount float64) (floa
 	VALUES ($1, $2, $3)
 	`
 
-	if _, err = tx.Exec(ctx, q2, userId, amount, TransactionDeposit); err != nil {
+	if _, err = tx.Exec(ctx, q2, userId, amountInt, TransactionDeposit); err != nil {
 		return 0, err
 	}
 
-	return newBalance, nil
+	newBalanceFloat := IntToFloat(newBalance)
+	return newBalanceFloat, nil
 }
 
 func (r *Repo) Reserve(ctx context.Context, userId uint32, serviceId uint32, orderId uint64, amount float64) (float64, error) {
@@ -91,19 +93,20 @@ func (r *Repo) Reserve(ctx context.Context, userId uint32, serviceId uint32, ord
 		}
 	}()
 
-	var balance float64
+	var balance int
 
-	q1 := `SELECT balance FROM public.balances WHERE user_id=$1`
+	q1 := `SELECT balance FROM public.balances WHERE user_id=$1 FOR UPDATE`
 
 	if err = tx.QueryRow(ctx, q1, userId).Scan(&balance); err != nil {
 		return 0, err
 	}
 
-	if balance < amount {
-		return 0, storage.ErrInsufficientBalance
+	amountInt := FloatToInt(amount)
+	if balance < amountInt {
+		return 0, httpserver.ErrInsufficientBalance
 	}
 
-	newBalance := balance - amount
+	newBalance := balance - amountInt
 
 	q2 := `UPDATE public.balances SET balance=$1 WHERE user_id=$2`
 
@@ -116,7 +119,7 @@ func (r *Repo) Reserve(ctx context.Context, userId uint32, serviceId uint32, ord
 	VALUES ($1, $2, $3, $4, $5)
     `
 
-	if _, err = tx.Exec(ctx, q3, userId, serviceId, orderId, amount, Wait); err != nil {
+	if _, err = tx.Exec(ctx, q3, userId, serviceId, orderId, amountInt, Wait); err != nil {
 		return 0, err
 	}
 
@@ -125,15 +128,16 @@ func (r *Repo) Reserve(ctx context.Context, userId uint32, serviceId uint32, ord
 	VALUES ($1, $2, $3, $4, $5)
 	`
 
-	if _, err = tx.Exec(ctx, q4, userId, serviceId, orderId, amount, TransactionReserve); err != nil {
+	if _, err = tx.Exec(ctx, q4, userId, serviceId, orderId, amountInt, TransactionReserve); err != nil {
 		return 0, err
 	}
 
-	return newBalance, nil
+	newBalanceFloat := IntToFloat(newBalance)
+	return newBalanceFloat, nil
 }
 
 func (r *Repo) Balance(ctx context.Context, userId uint32) (float64, error) {
-	var balance float64
+	var balance int
 
 	q := `SELECT balance FROM public.balances WHERE user_id=$1`
 
@@ -144,13 +148,14 @@ func (r *Repo) Balance(ctx context.Context, userId uint32) (float64, error) {
 		return 0, err
 	}
 
-	return balance, nil
+	balanceFloat := IntToFloat(balance)
+	return balanceFloat, nil
 }
 
 func (r *Repo) Revenue(ctx context.Context, userId uint32, serviceId uint32, orderId uint64, amount float64) error {
 	tx, err := r.client.Begin(ctx)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	defer func() {
@@ -161,28 +166,34 @@ func (r *Repo) Revenue(ctx context.Context, userId uint32, serviceId uint32, ord
 		}
 	}()
 
-	var reserveAmount float64
+	var reserveID int
+	var reserveAmount int
 
 	q1 := `
-	SELECT amount FROM public.reserves
+	SELECT id, amount
+	FROM public.reserves
 	WHERE user_id=$1 AND service_id=$2 AND order_id=$3 AND status=$4
+	ORDER BY created_at
+	LIMIT 1
 	FOR UPDATE
 	`
 
-	if err = tx.QueryRow(ctx, q1, userId, serviceId, orderId, Wait).Scan(&reserveAmount); err != nil {
-		return storage.ErrReserveNotFound
+	if err = tx.QueryRow(ctx, q1, userId, serviceId, orderId, Wait).Scan(&reserveID, &reserveAmount); err != nil {
+		return httpserver.ErrReserveNotFound
 	}
 
-	if amount != reserveAmount {
-		return storage.ErrReserveMismatch
+	amountInt := FloatToInt(amount)
+	if amountInt != reserveAmount {
+		return httpserver.ErrReserveMismatch
 	}
 
 	q2 := `
-	UPDATE public.reserves SET status=$1
-	WHERE user_id=$2 AND service_id=$3 AND order_id=$4 AND status=$5
+	UPDATE public.reserves
+	SET status=$1
+	WHERE id=$2
 	`
 
-	if _, err = tx.Exec(ctx, q2, Success, userId, serviceId, orderId, Wait); err != nil {
+	if _, err = tx.Exec(ctx, q2, Success, reserveID); err != nil {
 		return err
 	}
 
@@ -191,9 +202,17 @@ func (r *Repo) Revenue(ctx context.Context, userId uint32, serviceId uint32, ord
 	VALUES ($1, $2, $3, $4, $5)
 	`
 
-	if _, err = tx.Exec(ctx, q3, userId, serviceId, orderId, amount, TransactionRevenue); err != nil {
-		return nil
+	if _, err = tx.Exec(ctx, q3, userId, serviceId, orderId, amountInt, TransactionRevenue); err != nil {
+		return err
 	}
 
 	return nil
+}
+
+func FloatToInt(amount float64) int {
+	return int(math.Round(amount * 100))
+}
+
+func IntToFloat(amount int) float64 {
+	return float64(amount) / 100
 }

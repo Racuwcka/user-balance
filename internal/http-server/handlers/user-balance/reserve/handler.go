@@ -7,13 +7,15 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/Racuwcka/user-balance.git/internal/http-server/handlers/user-balance/dto"
-	"github.com/Racuwcka/user-balance.git/internal/lib/api/response"
-	"github.com/Racuwcka/user-balance.git/internal/lib/logger/sl"
-	"github.com/Racuwcka/user-balance.git/internal/storage"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
 	"github.com/go-playground/validator/v10"
+	"github.com/jackc/pgx/v5"
+
+	httpserver "github.com/Racuwcka/user-balance.git/internal/http-server"
+	"github.com/Racuwcka/user-balance.git/internal/http-server/handlers/user-balance/dto"
+	"github.com/Racuwcka/user-balance.git/internal/lib/api/response"
+	"github.com/Racuwcka/user-balance.git/internal/lib/logger/sl"
 )
 
 type provider interface {
@@ -66,10 +68,17 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	balance, err := h.provider.Reserve(context.Background(), req.UserId, req.ServiceId, req.OrderId, req.Amount)
-	if errors.Is(err, storage.ErrInsufficientBalance) {
+	if errors.Is(err, httpserver.ErrInsufficientBalance) {
 		h.log.Error("user balance is less than the requested amount", sl.Err(err))
 		render.Status(r, http.StatusInternalServerError)
 		render.JSON(w, r, response.Error("user balance is less than the requested amount"))
+		return
+	}
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		h.log.Error(err.Error())
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, response.Error("not found reserve funds"))
 		return
 	}
 

@@ -7,13 +7,14 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/Racuwcka/user-balance.git/internal/http-server/handlers/user-balance/dto"
-	"github.com/Racuwcka/user-balance.git/internal/lib/api/response"
-	"github.com/Racuwcka/user-balance.git/internal/lib/logger/sl"
-	"github.com/Racuwcka/user-balance.git/internal/storage"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
 	"github.com/go-playground/validator/v10"
+
+	httpserver "github.com/Racuwcka/user-balance.git/internal/http-server"
+	"github.com/Racuwcka/user-balance.git/internal/http-server/handlers/user-balance/dto"
+	"github.com/Racuwcka/user-balance.git/internal/lib/api/response"
+	"github.com/Racuwcka/user-balance.git/internal/lib/logger/sl"
 )
 
 type provider interface {
@@ -68,13 +69,13 @@ func (h Handler) Handle(w http.ResponseWriter, r *http.Request) {
 	if err := h.provider.Revenue(context.Background(), req.UserId, req.ServiceId, req.OrderId, req.Amount); err != nil {
 		render.Status(r, http.StatusInternalServerError)
 
-		if errors.Is(err, storage.ErrReserveNotFound) {
+		if errors.Is(err, httpserver.ErrReserveNotFound) {
 			h.log.Error("user reserve is not found", sl.Err(err))
 			render.JSON(w, r, response.Error("user reserve is not found"))
 			return
 		}
 
-		if errors.Is(err, storage.ErrReserveMismatch) {
+		if errors.Is(err, httpserver.ErrReserveMismatch) {
 			h.log.Error("reserve amount mismatch",
 				slog.Any("err", err),
 				slog.Float64("expected", req.Amount),
@@ -83,7 +84,7 @@ func (h Handler) Handle(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		h.log.Error("funds reservation failed", sl.Err(err))
+		h.log.Error("funds reservation failed", "error", sl.Err(err))
 		render.JSON(w, r, response.Error("funds reservation failed"))
 		return
 	}

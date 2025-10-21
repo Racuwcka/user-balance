@@ -6,11 +6,12 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/Racuwcka/user-balance.git/internal/http-server/handlers/user-balance/dto"
-	"github.com/Racuwcka/user-balance.git/internal/lib/api/response"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
+
+	"github.com/Racuwcka/user-balance.git/internal/http-server/handlers/user-balance/dto"
+	"github.com/Racuwcka/user-balance.git/internal/lib/api/response"
 )
 
 type provider interface {
@@ -37,25 +38,19 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request) {
 
 	userIdStr := chi.URLParam(r, "user_id")
 	if userIdStr == "" {
-		h.log.Error("param user_id is empty")
-		render.Status(r, http.StatusBadRequest)
-		render.JSON(w, r, response.Error("invalid request"))
+		responseErr(h.log, w, r, "param user_id is empty", http.StatusBadRequest, "invalid request")
 		return
 	}
 
 	userId, err := strconv.ParseUint(userIdStr, 10, 64)
 	if err != nil || userId == 0 {
-		h.log.Error("invalid param user_id")
-		render.Status(r, http.StatusUnprocessableEntity)
-		render.JSON(w, r, response.Error("invalid user_id"))
+		responseErr(h.log, w, r, "invalid param user_id", http.StatusUnprocessableEntity, "invalid user_id")
 		return
 	}
 
 	balance, err := h.provider.Balance(context.Background(), uint32(userId))
 	if err != nil {
-		h.log.Error("get user balance failed")
-		render.Status(r, http.StatusInternalServerError)
-		render.JSON(w, r, response.Error("get balance failed"))
+		responseErr(h.log, w, r, "get user balance failed", http.StatusInternalServerError, "get balance failed")
 		return
 	}
 
@@ -68,4 +63,10 @@ func responseOK(w http.ResponseWriter, r *http.Request, userId uint32, balance f
 		UserId:   userId,
 		Balance:  balance,
 	})
+}
+
+func responseErr(log *slog.Logger, w http.ResponseWriter, r *http.Request, msgLog string, status int, msgError string) {
+	log.Error(msgLog)
+	render.Status(r, status)
+	render.JSON(w, r, response.Error(msgError))
 }

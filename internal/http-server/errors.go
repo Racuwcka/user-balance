@@ -1,4 +1,4 @@
-package storage
+package httpserver
 
 import "errors"
 

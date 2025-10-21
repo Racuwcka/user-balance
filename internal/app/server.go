@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Racuwcka/shorter-url/pkg/closer"
+
 	"github.com/Racuwcka/user-balance.git/internal/config"
 	"github.com/Racuwcka/user-balance.git/internal/router"
 )
@@ -39,7 +40,7 @@ func Run(ctx context.Context) error {
 	shutdowner.Add(srv.Shutdown)
 
 	go func() {
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := srv.ListenAndServe(); err != nil {
 			log.Error("listen and serve: %v", err)
 		}
 	}()
