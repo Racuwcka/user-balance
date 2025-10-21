@@ -6,13 +6,15 @@ services:
     container_name: user_balance_postgres_dev
     restart: always
     ports:
-      - "5433:5432"
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     environment:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME}
+    networks:
+      - new
 
   app:
     build:
@@ -24,9 +26,30 @@ services:
     env_file:
       - .env
     ports:
-      - "8081:8080"
+      - "8080:8080"
     volumes:
       - .:/app
+    networks:
+      - new
+
+  migrate:
+    image: migrate/migrate
+    networks:
+      - new
+    volumes:
+      - ./migrations:/migrations
+    env_file:
+      - .env
+    command: [
+      "-path", "/migrations",
+      "-database", "postgres://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}?sslmode=disable",
+      "up"
+    ]
+    depends_on:
+      - postgres
 
 volumes:
   postgres_data:
+
+networks:
+  new:
